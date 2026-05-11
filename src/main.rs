@@ -2,7 +2,6 @@ use std::collections::HashSet;
 use bio::io::fasta::Reader;
 use clap::Parser;
 use serde::Deserialize;
-use serde_json;
 use std::fs;
 
 #[derive(Parser)]
@@ -30,8 +29,8 @@ fn main() {
     let parser = Args::parse();
 
     let qfile = Reader::from_file(parser.query).expect("Error while reading query");
-    let json = fs::read_to_string(parser.index).expect("Error while reading index");
-    let deserialized: HSet = serde_json::from_str(&json).unwrap();
+    let mpack = fs::read(parser.index).expect("Error while reading index");
+    let deserialized: HSet = rmp_serde::from_slice(&mpack).unwrap();
     let kmers: HashSet<Vec<u8>> = deserialized.x;
 
     let mut count_pos = 0;
