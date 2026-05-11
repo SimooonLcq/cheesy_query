@@ -1,8 +1,11 @@
 use std::collections::HashSet;
-use bio::io::fasta::Reader;
+use helicase::*;
+use helicase::input::*;
 use clap::Parser;
 use serde::Deserialize;
 use std::fs;
+
+const CONFIG: Config = ParserOptions::default().config();
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -28,15 +31,15 @@ struct HSet{
 fn main() {
     let parser = Args::parse();
 
-    let qfile = Reader::from_file(parser.query).expect("Error while reading query");
+    let mut qfile = FastaParser::<CONFIG, _>::from_file(&parser.query).expect("Error during fasta reading");
     let mpack = fs::read(parser.index).expect("Error while reading index");
     let deserialized: HSet = rmp_serde::from_slice(&mpack).unwrap();
     let kmers: HashSet<Vec<u8>> = deserialized.x;
 
     let mut count_pos = 0;
     let mut count_neg = 0;
-    for record in qfile.records(){
-        let seq = record.expect("Error during fasta record parsing").seq().to_vec();
+    while let Some(_event) = qfile.next(){
+        let seq = qfile.get_dna_string_owned();
         for i in 0..seq.len()-parser.k+1{
             let kmer = (&seq[i..i+parser.k]).to_vec();
             let rc = revcomp(&kmer);
@@ -60,7 +63,7 @@ fn revcomp(kmer:&Vec<u8>)->Vec<u8> {
             84 => rc.push(65),
             67 => rc.push(71),
             71 => rc.push(67),
-            _ => println!("Wrong character in a kmer, correct it and start again"),
+            _ => println!("Wrong character in a query kmer, correct it and start again"),
         }
     }
     rc.reverse();
